@@ -1,0 +1,145 @@
+---
+- hosts: balanceador
+  become: true
+  tasks:
+
+    - name: Instalación de servidor NFS, HAProxy y docker
+      apt: name={{ item }} update_cache=yes state=latest
+      with_items:
+        - nfs-kernel-server
+        - haproxy
+        - docker.io
+
+    - name: Copiar fichero /etc/exports
+      copy:
+        src=datos/exports
+        dest=/etc
+
+    - name: Copiar fichero /etc/haproxy/haproxy.cfg
+      copy:
+        src=datos/haproxy.cfg
+        dest=/etc/haproxy
+
+    - name: Reiniciar servidor HAProxy
+      service: name=haproxy state=restarted
+
+- hosts: nodos
+  become: true
+  tasks:
+
+    - name: Instalación de cliente NFS
+      apt: name=nfs-common update_cache=yes state=latest
+
+    - name: Modificar /etc/fstab
+      lineinfile:
+        dest: /etc/fstab
+        line: '192.168.1.200:/shared /shared nfs4 _netdev,auto 0 0'
+
+- hosts: all
+  become: true
+  tasks:
+
+    - name: Crear directorio compartido
+      file:
+        path: '/shared'
+        state: directory
+
+    - name: Copiar fichero /etc/default/nfs-common
+      copy:
+        src=datos/nfs-common
+        dest=/etc/default
+
+- hosts: balanceador
+  become: true
+  tasks:
+
+    - name: Crear directorio WEB
+      file:
+        path: '/shared/public_html'
+        state: directory
+
+    - name: Crear directorio MySQL
+      file:
+        path: '/shared/mysql'
+        state: directory
+
+    - name: Crear directorio KEY
+      file:
+        path: '/shared/key'
+        state: directory
+
+    - name: Copiar clave privada
+      copy:
+        src: datos/FJG.key
+        dest: /shared/key
+
+    - name: Copiar script docker-compose
+      copy:
+        src: datos/docker-compose
+        dest: /usr/local/bin/
+
+    - name: Copiar script docker-machine
+      copy:
+        src: datos/docker-machine
+        dest: /usr/local/bin/
+
+    - name: Copiar script para generar docker-swarm
+      copy:
+        src: datos/docker_swarm.sh
+        dest: /tmp
+
+    - name: Copiar Dockerfile para generar imagen MySQL
+      copy:
+        src: datos/Dockerfile
+        dest: /tmp
+
+    - name: Copiar 50-server.cnf para generar imagen MySQL
+      copy:
+        src: datos/50-server.cnf
+        dest: /tmp
+
+    - name: Generar imagen docker de MySQL
+      command: docker build -t francisjgarcia/mysql_pasir /tmp
+
+    - name: Generar contenedor MySQL en ELB
+      command: docker run -d --name MySQL -h MySQL -p 3306:3306 francisjgarcia/mysql_pasir
+
+    - name: Descargar WordPress
+      get_url:
+        url: https://es.wordpress.org/latest-es_ES.tar.gz
+        dest: /tmp/wordpress.tar.gz
+
+    - name: Descomprimir WordPress
+      command: tar xzf /tmp/wordpress.tar.gz --strip-components=1 -C /shared/public_html
+
+    - name: Reiniciar servidor NFS
+      service: name=nfs-kernel-server state=restarted
+
+- hosts: nodos
+  become: true
+  tasks:
+
+    - name: Montar /etc/fstab
+      command: mount -a
+
+    - name: Instalar docker
+      apt: name=docker.io update_cache=yes state=latest
+
+- hosts: balanceador
+  become: true
+  tasks:
+
+    - name: Instalar docker
+      apt: name=docker.io update_cache=yes state=latest
+
+    - name: Permisos para docker-compose
+      command: chmod +x /usr/local/bin/docker-compose
+
+    - name: Permisos para docker-machine
+      command: chmod +x /usr/local/bin/docker-machine
+
+    - name: Dar permisos a script docker-swarm
+      command: chmod +x /tmp/docker_swarm.sh
+
+    - name: Ejecutar script para crear docker-swarm
+      command: /tmp/docker_swarm.sh

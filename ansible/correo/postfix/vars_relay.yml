@@ -1,0 +1,5 @@
+myhostname: correo.dominio.com
+relay_server: smtp.gmail.com
+relay_port: 587
+relay_email: correo@gmail.com
+relay_password: clave

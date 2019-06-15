@@ -1,0 +1,3 @@
+puerto: 80
+dominio: dominio.com
+docroot: /var/www

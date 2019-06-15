@@ -1,0 +1,55 @@
+---
+- hosts: balanceador
+  become: true
+  tasks:
+
+    - name: Modificar /etc/haproxy/haproxy.cfg
+      lineinfile:
+        dest: /etc/haproxy/haproxy.cfg
+        line: 'server nodo2 192.168.1.203:8080'
+
+    - name: Reiniciar servidor HAProxy
+      service: name=haproxy state=restarted
+
+- hosts: nodos
+  become: true
+  tasks:
+
+    - name: Instalación de cliente NFS y docker
+      apt: name={{ item }} update_cache=yes state=latest
+      with_items:
+        - nfs-common
+        - docker.io
+
+    - name: Modificar /etc/fstab
+      lineinfile:
+        dest: /etc/fstab
+        line: '192.168.1.200:/shared /shared nfs4 _netdev,auto 0 0'
+
+    - name: Crear directorio compartido
+      file:
+        path: '/shared'
+        state: directory
+
+    - name: Copiar fichero /etc/default/nfs-common
+      copy:
+        src=datos/nfs-common
+        dest=/etc/default
+
+    - name: Montar /etc/fstab
+      command: mount -a
+
+- hosts: balanceador
+  become: true
+  tasks:
+
+    - name: Copiar script de docker-swarm para escalabilidad
+      copy:
+        src: datos/docker_swarm_escalado.sh
+        dest: /tmp
+
+    - name: Dar permisos a script docker-swarm de escalabilidad
+      command: chmod +x /tmp/docker_swarm_escalado.sh
+
+    - name: Ejecutar script para incrementar docker-swarm
+      command: /tmp/docker_swarm_escalado.sh

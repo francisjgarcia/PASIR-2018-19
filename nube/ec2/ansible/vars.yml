@@ -1,0 +1,11 @@
+instance_type: t2.micro
+security_group: grupo_seguridad
+image: ami-07a3bd4944eb120a0
+keypair: PASIR
+region: ap-southeast-2
+hostname: mi_instancia
+aws_access_key: 
+aws_secret_key: 
+puerto_externo: 80
+puerto_interno: 80
+count: 1

@@ -1,0 +1,5 @@
+listen: '*'
+acceso: 0.0.0.0/0
+user: usuario
+user_password: clave
+database: database

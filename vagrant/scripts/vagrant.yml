@@ -1,0 +1,10 @@
+---
+- hosts: all
+  become: true
+  tasks:
+    - name: Instalación de Vagrant, VirtualBox y Ansible
+      apt: name={{ item }} update_cache=yes state=latest
+      with_items:
+          - vagrant
+          - virtualbox
+          - ansible

@@ -1,0 +1,9 @@
+Vagrant.configure(2) do |config|
+  config.vm.define "vb" do |vb|
+    vb.vm.box = "ubuntu/trusty64"
+    vb.vm.network "public_network", bridge: "ens32", ip: "192.168.1.111"
+    vb.vm.provision "ansible" do |ansible|
+     ansible.playbook = "ansible.yml"
+    end
+  end
+end
